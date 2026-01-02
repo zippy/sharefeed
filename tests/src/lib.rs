@@ -157,6 +157,57 @@ mod share_item_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    async fn shares_visible_across_agents() {
+        holochain_trace::test_run();
+
+        let mut conductor = SweetConductor::from_standard_config().await;
+        let dna = load_dna().await;
+
+        // Set up two agents
+        let app1 = conductor
+            .setup_app("sharefeed-1", [&dna])
+            .await
+            .unwrap();
+        let app2 = conductor
+            .setup_app("sharefeed-2", [&dna])
+            .await
+            .unwrap();
+
+        let (cell1,) = app1.into_tuple();
+        let (cell2,) = app2.into_tuple();
+
+        // Agent 1 creates a share
+        let share_item = ShareItem {
+            url: "https://example.com/shared-article".to_string(),
+            title: "Cross-Agent Test".to_string(),
+            description: Some("Testing cross-agent visibility".to_string()),
+            selection: None,
+            favicon: None,
+            thumbnail: None,
+            tags: vec!["test".to_string()],
+        };
+
+        let _record: Record = conductor
+            .call(&cell1.zome("sharefeed"), "create_share_item", share_item.clone())
+            .await;
+
+        // Wait for gossip to propagate (sweettest uses same conductor so this is fast)
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Agent 2 should be able to see Agent 1's share
+        let shares: Vec<ShareItemInfo> = conductor
+            .call(&cell2.zome("sharefeed"), "get_recent_shares", ())
+            .await;
+
+        assert_eq!(shares.len(), 1, "Agent 2 should see Agent 1's share");
+        assert_eq!(shares[0].share_item.url, "https://example.com/shared-article");
+        assert_eq!(shares[0].share_item.title, "Cross-Agent Test");
+
+        // Verify the author is Agent 1's pubkey
+        assert_eq!(shares[0].author, *cell1.agent_pubkey());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
     async fn share_item_requires_url_and_title() {
         holochain_trace::test_run();
 

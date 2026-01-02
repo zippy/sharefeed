@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { FeedList, AccessibilityPanel } from '$lib/components';
+  import { FeedList, AccessibilityPanel, ShareForm } from '$lib/components';
   import { sharesStore, settingsStore, initSharesStore } from '$lib/stores';
 
   let showSettings = false;
+  let showShareForm = false;
 
   // Subscribe to settings store values
   $: fontSize = $settingsStore.fontSize;
@@ -16,6 +17,10 @@
 
   async function handleRefresh(): Promise<void> {
     await sharesStore.refresh();
+  }
+
+  function handleShareCreated(): void {
+    showShareForm = false;
   }
 </script>
 
@@ -32,6 +37,18 @@
         <p class="tagline">Links from your family and friends</p>
       </div>
       <div class="header-actions">
+        <button
+          type="button"
+          class="icon-button share-button"
+          on:click={() => showShareForm = true}
+          aria-label="Share a link"
+          title="Share"
+        >
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
         <button
           type="button"
           class="icon-button"
@@ -64,6 +81,7 @@
     </main>
 
     <AccessibilityPanel bind:open={showSettings} on:close={() => showSettings = false} />
+    <ShareForm bind:open={showShareForm} on:created={handleShareCreated} on:cancel={() => showShareForm = false} />
   </div>
 </div>
 
@@ -161,6 +179,17 @@
 
   .icon-button:active {
     transform: scale(0.95);
+  }
+
+  .icon-button.share-button {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+  }
+
+  .icon-button.share-button:hover {
+    background: #4f46e5;
+    border-color: #4f46e5;
   }
 
   .main-content {
