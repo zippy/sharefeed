@@ -1,18 +1,16 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte';
   import { settingsStore } from '$lib/stores';
 
-  interface Props {
-    open?: boolean;
-    onClose?: () => void;
-  }
+  export let open = false;
 
-  let { open = false, onClose }: Props = $props();
+  const dispatch = createEventDispatcher<{ close: void }>();
 
-  // Reactive bindings to settings
-  let fontSize = $derived(settingsStore.fontSize);
-  let highContrast = $derived(settingsStore.highContrast);
-  let showThumbnails = $derived(settingsStore.showThumbnails);
-  let reducedMotion = $derived(settingsStore.reducedMotion);
+  // Subscribe to settings store values
+  $: fontSize = $settingsStore.fontSize;
+  $: highContrast = $settingsStore.highContrast;
+  $: showThumbnails = $settingsStore.showThumbnails;
+  $: reducedMotion = $settingsStore.reducedMotion;
 
   function handleFontSizeChange(event: Event): void {
     const target = event.target as HTMLInputElement;
@@ -39,25 +37,35 @@
   }
 
   function handleClose(): void {
-    if (onClose) onClose();
+    dispatch('close');
   }
 
   function handleKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && onClose) {
-      onClose();
+    if (event.key === 'Escape') {
+      dispatch('close');
     }
+  }
+
+  function handleOverlayClick(): void {
+    dispatch('close');
+  }
+
+  function handlePanelClick(event: MouseEvent): void {
+    event.stopPropagation();
+  }
+
+  function handlePanelKeydown(event: KeyboardEvent): void {
+    event.stopPropagation();
   }
 </script>
 
 {#if open}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="panel-overlay"
-    onclick={handleClose}
-    onkeydown={handleKeydown}
+    on:click={handleOverlayClick}
+    on:keydown={handleKeydown}
     role="presentation"
   >
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="accessibility-panel"
       class:high-contrast={highContrast}
@@ -65,15 +73,15 @@
       aria-label="Accessibility Settings"
       aria-modal="true"
       tabindex="-1"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      on:click={handlePanelClick}
+      on:keydown={handlePanelKeydown}
     >
       <header class="panel-header">
         <h2>Display Settings</h2>
         <button
           type="button"
           class="close-button"
-          onclick={handleClose}
+          on:click={handleClose}
           aria-label="Close settings"
         >
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
@@ -99,7 +107,7 @@
               max="32"
               step="2"
               value={fontSize}
-              oninput={handleFontSizeChange}
+              on:input={handleFontSizeChange}
               aria-describedby="font-size-desc"
             />
             <span class="slider-label slider-label-large" aria-hidden="true">A</span>
@@ -115,7 +123,7 @@
             <input
               type="checkbox"
               checked={highContrast}
-              onchange={handleHighContrastChange}
+              on:change={handleHighContrastChange}
             />
             <span class="toggle-switch" aria-hidden="true"></span>
             <span class="toggle-label">
@@ -131,7 +139,7 @@
             <input
               type="checkbox"
               checked={showThumbnails}
-              onchange={handleShowThumbnailsChange}
+              on:change={handleShowThumbnailsChange}
             />
             <span class="toggle-switch" aria-hidden="true"></span>
             <span class="toggle-label">
@@ -147,7 +155,7 @@
             <input
               type="checkbox"
               checked={reducedMotion}
-              onchange={handleReducedMotionChange}
+              on:change={handleReducedMotionChange}
             />
             <span class="toggle-switch" aria-hidden="true"></span>
             <span class="toggle-label">
@@ -159,7 +167,7 @@
       </div>
 
       <footer class="panel-footer">
-        <button type="button" class="reset-button" onclick={handleReset}>
+        <button type="button" class="reset-button" on:click={handleReset}>
           Reset to Defaults
         </button>
       </footer>

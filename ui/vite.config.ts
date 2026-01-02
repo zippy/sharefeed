@@ -1,33 +1,28 @@
-import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vitest/config';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { defineConfig } from 'vite';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  plugins: [sveltekit()],
+  plugins: [svelte()],
   server: {
-    port: parseInt(process.env.UI_PORT || '5173'),
+    port: parseInt(process.env.UI_PORT || '1420'),
     strictPort: true,
   },
   resolve: {
     alias: {
-      // Force CommonJS version of libsodium-wrappers to avoid ESM module resolution issues
-      // The package is hoisted to root node_modules due to workspaces
-      'libsodium-wrappers': resolve(
-        __dirname,
-        '../node_modules/libsodium-wrappers/dist/modules/libsodium-wrappers.js'
-      ),
+      $lib: resolve(__dirname, 'src/lib'),
+      // Force use of local libsodium-wrappers (0.7.15) instead of hoisted version (0.7.16)
+      'libsodium-wrappers': resolve(__dirname, 'node_modules/libsodium-wrappers'),
     },
   },
-  ssr: {
-    // Don't externalize @holochain/client - bundle it so the alias applies
-    noExternal: ['@holochain/client'],
-  },
   optimizeDeps: {
-    // Pre-bundle these for faster dev startup
     include: ['@holochain/client', 'libsodium-wrappers'],
+  },
+  build: {
+    outDir: 'dist',
   },
   test: {
     include: ['src/**/*.{test,spec}.{js,ts}'],

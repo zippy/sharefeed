@@ -1,3 +1,3 @@
-export * from './settings.svelte';
-export * from './shares.svelte';
-export * from './feeds.svelte';
+export * from './settings';
+export * from './shares';
+export * from './feeds';

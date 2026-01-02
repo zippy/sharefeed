@@ -2,19 +2,18 @@
   import type { ShareItem } from '$lib/types';
   import { sharesStore, settingsStore } from '$lib/stores';
   import ShareCard from './ShareCard.svelte';
+  import { createEventDispatcher } from 'svelte';
 
-  interface Props {
-    onDelete?: (id: string) => void;
-  }
+  export let onDelete: ((id: string) => void) | undefined = undefined;
 
-  let { onDelete }: Props = $props();
+  const dispatch = createEventDispatcher();
 
-  // Reactive bindings to store state
-  let shares = $derived(sharesStore.shares);
-  let loading = $derived(sharesStore.loading);
-  let error = $derived(sharesStore.error);
-  let isEmpty = $derived(sharesStore.isEmpty);
-  let highContrast = $derived(settingsStore.highContrast);
+  // Subscribe to store values
+  $: shares = $sharesStore.shares;
+  $: loading = $sharesStore.loading;
+  $: error = $sharesStore.error;
+  $: isEmpty = $sharesStore.isEmpty;
+  $: highContrast = $settingsStore.highContrast;
 
   async function handleRefresh(): Promise<void> {
     await sharesStore.refresh();
@@ -43,7 +42,7 @@
         <line x1="12" y1="16" x2="12.01" y2="16" />
       </svg>
       <p>{error}</p>
-      <button type="button" onclick={handleRefresh} class="retry-button">
+      <button type="button" on:click={handleRefresh} class="retry-button">
         Try Again
       </button>
     </div>

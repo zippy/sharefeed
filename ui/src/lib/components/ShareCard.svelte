@@ -2,17 +2,13 @@
   import type { ShareItem } from '$lib/types';
   import { settingsStore } from '$lib/stores';
 
-  interface Props {
-    share: ShareItem;
-    onDelete?: (id: string) => void;
-  }
+  export let share: ShareItem;
+  export let onDelete: ((id: string) => void) | undefined = undefined;
 
-  let { share, onDelete }: Props = $props();
-
-  // Derive settings reactively
-  let fontSize = $derived(settingsStore.fontSize);
-  let showThumbnails = $derived(settingsStore.showThumbnails);
-  let highContrast = $derived(settingsStore.highContrast);
+  // Subscribe to settings store values
+  $: fontSize = $settingsStore.fontSize;
+  $: showThumbnails = $settingsStore.showThumbnails;
+  $: highContrast = $settingsStore.highContrast;
 
   function formatDate(timestamp: number): string {
     const date = new Date(timestamp);
@@ -57,6 +53,11 @@
       onDelete(share.id);
     }
   }
+
+  function handleFaviconError(event: Event): void {
+    const target = event.target as HTMLElement;
+    target.style.display = 'none';
+  }
 </script>
 
 <article
@@ -71,7 +72,7 @@
     rel="noopener noreferrer"
     class="card-link"
     tabindex="0"
-    onkeydown={handleKeydown}
+    on:keydown={handleKeydown}
   >
     {#if showThumbnails && share.thumbnail}
       <div class="thumbnail">
@@ -86,7 +87,7 @@
             src={share.favicon}
             alt=""
             class="favicon"
-            onerror={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+            on:error={handleFaviconError}
           />
         {/if}
         <span class="domain">{getDomain(share.url)}</span>
@@ -120,7 +121,7 @@
     <button
       type="button"
       class="delete-button"
-      onclick={handleDelete}
+      on:click={handleDelete}
       aria-label="Delete this share"
       title="Delete"
     >

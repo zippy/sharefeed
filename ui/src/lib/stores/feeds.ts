@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { writable, get } from 'svelte/store';
 import {
   getClient,
   type ShareFeedClient,
@@ -8,7 +8,9 @@ import {
   type AgentPubKey,
 } from '$lib/holochain';
 import { encodeHashToBase64 } from '@holochain/client';
-import type { ShareItem } from './shares.svelte';
+import type { ShareItem } from './shares';
+
+const browser = typeof window !== 'undefined';
 
 /**
  * UI-friendly feed type.
@@ -44,60 +46,43 @@ function toFeed(info: FeedInfo): Feed {
 }
 
 /**
- * Reactive feeds state using Svelte 5 runes.
+ * Creates the feeds store with Svelte 3 writable pattern.
  */
-class FeedsStore {
-  private _feeds = $state<Feed[]>([]);
-  private _loading = $state(true);
-  private _error = $state<string | null>(null);
-  private _client: ShareFeedClient | null = null;
+function createFeedsStore() {
+  const feeds = writable<Feed[]>([]);
+  const loading = writable(true);
+  const error = writable<string | null>(null);
 
-  get feeds(): Feed[] {
-    return this._feeds;
-  }
+  let client: ShareFeedClient | null = null;
 
-  get loading(): boolean {
-    return this._loading;
-  }
-
-  get error(): string | null {
-    return this._error;
-  }
-
-  /**
-   * Refresh feeds from Holochain.
-   */
-  async refresh(): Promise<void> {
+  async function refresh(): Promise<void> {
     if (!browser) return;
 
-    this._client = getClient();
-    if (!this._client) return;
+    client = getClient();
+    if (!client) return;
 
-    this._loading = true;
-    this._error = null;
+    loading.set(true);
+    error.set(null);
 
     try {
-      const feedInfos = await this._client.getMyFeeds();
-      this._feeds = feedInfos.map(toFeed);
+      const feedInfos = await client.getMyFeeds();
+      feeds.set(feedInfos.map(toFeed));
     } catch (err) {
-      this._error = err instanceof Error ? err.message : 'Failed to load feeds';
+      error.set(err instanceof Error ? err.message : 'Failed to load feeds');
       console.error('Failed to refresh feeds:', err);
     } finally {
-      this._loading = false;
+      loading.set(false);
     }
   }
 
-  /**
-   * Create a new feed.
-   */
-  async createFeed(
+  async function createFeed(
     name: string,
     description?: string,
     isPublic: boolean = false,
     stewards: AgentPubKey[] = []
   ): Promise<Feed | null> {
-    this._client = getClient();
-    if (!this._client) return null;
+    client = getClient();
+    if (!client) return null;
 
     try {
       const feed: HcFeed = {
@@ -106,69 +91,64 @@ class FeedsStore {
         stewards,
         is_public: isPublic,
       };
-      await this._client.createFeed(feed);
-      await this.refresh();
+      await client.createFeed(feed);
+      await refresh();
       // Return the newest feed
-      return this._feeds.find((f) => f.name === name) ?? null;
+      const currentFeeds = get(feeds);
+      return currentFeeds.find((f) => f.name === name) ?? null;
     } catch (err) {
-      this._error = err instanceof Error ? err.message : 'Failed to create feed';
+      error.set(err instanceof Error ? err.message : 'Failed to create feed');
       console.error('Failed to create feed:', err);
       return null;
     }
   }
 
-  /**
-   * Delete a feed.
-   */
-  async deleteFeed(id: string): Promise<void> {
-    this._client = getClient();
-    if (!this._client) return;
+  async function deleteFeed(id: string): Promise<void> {
+    client = getClient();
+    if (!client) return;
 
-    const feed = this._feeds.find((f) => f.id === id);
+    const currentFeeds = get(feeds);
+    const feed = currentFeeds.find((f) => f.id === id);
     if (!feed) return;
 
     try {
-      await this._client.deleteFeed(feed.actionHash);
-      this._feeds = this._feeds.filter((f) => f.id !== id);
+      await client.deleteFeed(feed.actionHash);
+      feeds.set(currentFeeds.filter((f) => f.id !== id));
     } catch (err) {
-      this._error = err instanceof Error ? err.message : 'Failed to delete feed';
+      error.set(err instanceof Error ? err.message : 'Failed to delete feed');
       console.error('Failed to delete feed:', err);
     }
   }
 
-  /**
-   * Add a share to a feed.
-   */
-  async addShareToFeed(feedId: string, shareActionHash: ActionHash): Promise<void> {
-    this._client = getClient();
-    if (!this._client) return;
+  async function addShareToFeed(feedId: string, shareActionHash: ActionHash): Promise<void> {
+    client = getClient();
+    if (!client) return;
 
-    const feed = this._feeds.find((f) => f.id === feedId);
+    const currentFeeds = get(feeds);
+    const feed = currentFeeds.find((f) => f.id === feedId);
     if (!feed) return;
 
     try {
-      await this._client.addShareToFeed({
+      await client.addShareToFeed({
         feed_hash: feed.actionHash,
         share_item_hash: shareActionHash,
       });
     } catch (err) {
-      this._error = err instanceof Error ? err.message : 'Failed to add share to feed';
+      error.set(err instanceof Error ? err.message : 'Failed to add share to feed');
       console.error('Failed to add share to feed:', err);
     }
   }
 
-  /**
-   * Get shares for a specific feed.
-   */
-  async getFeedShares(feedId: string): Promise<ShareItem[]> {
-    this._client = getClient();
-    if (!this._client) return [];
+  async function getFeedShares(feedId: string): Promise<ShareItem[]> {
+    client = getClient();
+    if (!client) return [];
 
-    const feed = this._feeds.find((f) => f.id === feedId);
+    const currentFeeds = get(feeds);
+    const feed = currentFeeds.find((f) => f.id === feedId);
     if (!feed) return [];
 
     try {
-      const shareInfos = await this._client.getFeedShares(feed.actionHash);
+      const shareInfos = await client.getFeedShares(feed.actionHash);
       return shareInfos.map((info) => {
         const timestampMs =
           typeof info.created_at === 'number'
@@ -190,11 +170,24 @@ class FeedsStore {
         };
       });
     } catch (err) {
-      this._error = err instanceof Error ? err.message : 'Failed to get feed shares';
+      error.set(err instanceof Error ? err.message : 'Failed to get feed shares');
       console.error('Failed to get feed shares:', err);
       return [];
     }
   }
+
+  return {
+    // Expose stores for subscription
+    feeds,
+    loading,
+    error,
+    // Methods
+    refresh,
+    createFeed,
+    deleteFeed,
+    addShareToFeed,
+    getFeedShares,
+  };
 }
 
-export const feedsStore = new FeedsStore();
+export const feedsStore = createFeedsStore();

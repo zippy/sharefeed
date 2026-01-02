@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { writable, derived, get, type Readable } from 'svelte/store';
 import {
   connect,
   getClient,
@@ -9,6 +9,8 @@ import {
   type ActionHash,
 } from '$lib/holochain';
 import { encodeHashToBase64 } from '@holochain/client';
+
+const browser = typeof window !== 'undefined';
 
 /**
  * UI-friendly share item type.
@@ -27,6 +29,14 @@ export interface ShareItem {
   sharedBy: string;
   sharedByName?: string;
   tags: string[];
+}
+
+interface SharesStoreState {
+  shares: ShareItem[];
+  loading: boolean;
+  error: string | null;
+  connected: boolean;
+  isEmpty: boolean;
 }
 
 /**
@@ -71,136 +81,126 @@ function toHcShareItem(
 }
 
 /**
- * Reactive shares state using Svelte 5 runes.
- * Connects directly to Holochain conductor.
+ * Creates the shares store with Svelte 3 writable pattern.
  */
-class SharesStore {
-  private _shares = $state<ShareItem[]>([]);
-  private _loading = $state(true);
-  private _error = $state<string | null>(null);
-  private _connected = $state(false);
-  private _client: ShareFeedClient | null = null;
+function createSharesStore() {
+  // Internal writable stores
+  const _shares = writable<ShareItem[]>([]);
+  const _loading = writable(true);
+  const _error = writable<string | null>(null);
+  const _connected = writable(false);
 
-  get shares(): ShareItem[] {
-    return this._shares;
-  }
+  let client: ShareFeedClient | null = null;
 
-  get loading(): boolean {
-    return this._loading;
-  }
+  // Combined derived store for subscription
+  const combined: Readable<SharesStoreState> = derived(
+    [_shares, _loading, _error, _connected],
+    ([$shares, $loading, $error, $connected]) => ({
+      shares: $shares,
+      loading: $loading,
+      error: $error,
+      connected: $connected,
+      isEmpty: !$loading && $shares.length === 0,
+    })
+  );
 
-  get error(): string | null {
-    return this._error;
-  }
-
-  get isEmpty(): boolean {
-    return !this._loading && this._shares.length === 0;
-  }
-
-  get connected(): boolean {
-    return this._connected;
-  }
-
-  /**
-   * Initialize the store by connecting to Holochain.
-   */
-  async init(): Promise<void> {
+  async function init(): Promise<void> {
     if (!browser) return;
 
-    this._loading = true;
-    this._error = null;
+    _loading.set(true);
+    _error.set(null);
 
     try {
-      this._client = await connect();
-      this._connected = true;
+      client = await connect();
+      _connected.set(true);
 
       // Load initial shares
-      await this.refresh();
+      await refresh();
     } catch (err) {
-      this._error = err instanceof Error ? err.message : 'Failed to connect to Holochain';
+      _error.set(err instanceof Error ? err.message : 'Failed to connect to Holochain');
       console.error('Failed to initialize shares store:', err);
-      this._connected = false;
+      _connected.set(false);
     } finally {
-      this._loading = false;
+      _loading.set(false);
     }
   }
 
-  /**
-   * Refresh shares from Holochain.
-   */
-  async refresh(): Promise<void> {
-    if (!this._client) {
+  async function refresh(): Promise<void> {
+    if (!client) {
       // Try to get existing client
-      this._client = getClient();
-      if (!this._client) return;
+      client = getClient();
+      if (!client) return;
     }
 
-    this._loading = true;
-    this._error = null;
+    _loading.set(true);
+    _error.set(null);
 
     try {
-      const shareInfos = await this._client.getRecentShares();
-      this._shares = shareInfos.map(toShareItem);
+      const shareInfos = await client.getRecentShares();
+      _shares.set(shareInfos.map(toShareItem));
     } catch (err) {
-      this._error = err instanceof Error ? err.message : 'Failed to load shares';
+      _error.set(err instanceof Error ? err.message : 'Failed to load shares');
       console.error('Failed to refresh shares:', err);
     } finally {
-      this._loading = false;
+      _loading.set(false);
     }
   }
 
-  /**
-   * Create a new share item.
-   */
-  async createShare(
+  async function createShare(
     share: Omit<ShareItem, 'id' | 'actionHash' | 'sharedAt' | 'sharedBy'>
   ): Promise<ShareItem | null> {
-    if (!this._client) return null;
+    if (!client) return null;
 
     try {
-      const record = await this._client.createShareItem(toHcShareItem(share));
+      await client.createShareItem(toHcShareItem(share));
       // Refresh to get the new share with all metadata
-      await this.refresh();
+      await refresh();
       // Return the newly created share (should be first in the sorted list)
-      return this._shares[0] ?? null;
+      return get(_shares)[0] ?? null;
     } catch (err) {
-      this._error = err instanceof Error ? err.message : 'Failed to create share';
+      _error.set(err instanceof Error ? err.message : 'Failed to create share');
       console.error('Failed to create share:', err);
       return null;
     }
   }
 
-  /**
-   * Delete a share item.
-   */
-  async deleteShare(id: string): Promise<void> {
-    if (!this._client) return;
+  async function deleteShare(id: string): Promise<void> {
+    if (!client) return;
 
-    const share = this._shares.find((s) => s.id === id);
+    const currentShares = get(_shares);
+    const share = currentShares.find((s) => s.id === id);
     if (!share) return;
 
     try {
-      await this._client.deleteShareItem(share.actionHash);
-      this._shares = this._shares.filter((s) => s.id !== id);
+      await client.deleteShareItem(share.actionHash);
+      _shares.set(currentShares.filter((s) => s.id !== id));
     } catch (err) {
-      this._error = err instanceof Error ? err.message : 'Failed to delete share';
+      _error.set(err instanceof Error ? err.message : 'Failed to delete share');
       console.error('Failed to delete share:', err);
     }
   }
 
-  /**
-   * Check if connected to Holochain.
-   */
-  isConnected(): boolean {
+  function checkConnected(): boolean {
     return isConnected();
   }
+
+  return {
+    // Make store subscribable - returns SharesStoreState
+    subscribe: combined.subscribe,
+    // Methods
+    init,
+    refresh,
+    createShare,
+    deleteShare,
+    isConnected: checkConnected,
+  };
 }
 
-export const sharesStore = new SharesStore();
+export const sharesStore = createSharesStore();
 
 /**
  * Initialize the shares store.
- * Call this from +layout.svelte or +page.svelte on mount.
+ * Call this from App.svelte on mount.
  */
 export async function initSharesStore(): Promise<void> {
   await sharesStore.init();
