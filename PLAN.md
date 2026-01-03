@@ -17,7 +17,7 @@ ShareFeed is a browser extension + Holochain application for sharing URLs/conten
 
 ---
 
-## Phase 1: Browser Extension with Local Storage ✓ (Completed)
+## Phase 1: Browser Extension with Local Storage ✓ COMPLETED
 
 ### Directory Structure
 ```
@@ -54,7 +54,7 @@ interface ShareItem {
 
 ---
 
-## Phase 2: Svelte Feed Reader UI ✓ (Completed)
+## Phase 2: Svelte Feed Reader UI ✓ COMPLETED
 
 ### Directory Structure
 ```
@@ -77,7 +77,7 @@ sharefeed/
 
 ---
 
-## Phase 3: Holochain hApp (Current)
+## Phase 3: Holochain hApp ✓ COMPLETED
 
 **Reference Project:** `../emergence` - follow its patterns for zome structure
 
@@ -314,7 +314,9 @@ See `../volla-messages/dnas/` for more sophisticated time-based path linking pat
 
 ---
 
-## Phase 4: Integrate UI with Holochain
+## Phase 4: Integrate UI with Holochain ✓ COMPLETED
+
+**Note:** Migrated from SvelteKit to pure Svelte (Svelte 3.55.1) for holochain-open-dev compatibility. Added ShareForm component for creating shares directly from UI.
 
 ### Holochain Client Setup
 ```typescript
@@ -350,7 +352,7 @@ export async function callZome(fnName: string, payload: any): Promise<any> {
 
 ---
 
-## Phase 5: Wire Extension to Conductor
+## Phase 5: Wire Extension to Conductor (CURRENT)
 
 ### Extension Holochain Connection
 ```typescript

@@ -27,13 +27,13 @@ npm-debug.log*
 
 # Holochain (Phase 3+)
 target/
-Cargo.lock
 *.happ
 *.webhapp
 *.dna
 .hc
 .hc/
 .hc_live_*
+.kitsune2_bootstrap_srv
 
 # Test artifacts
 coverage/

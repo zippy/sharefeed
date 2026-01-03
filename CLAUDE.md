@@ -44,4 +44,4 @@ Technologically this project is a combo browser extension tool and holochain app
 3. Build the Holochain happ that allows both sharing and reading feeds and replaces the local file.
 4. Move the Svelte app into Holochain testing environment that uses the happ packeged into a webHapp and testable with hc-spin.
 5. Wire up the extension to connect to locally running test conductor to test that both sides Share/Feed are working.
-6. Create a kangaroo deployment for the wehapp.
+6. Mossify the holochain app (looking at ../emergence as a sample)

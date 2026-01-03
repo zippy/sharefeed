@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "description": "ShareFeed - Share URLs with family and friends via Holochain",
-  "type": "module",
   "scripts": {
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "npm run test:extension && npm run test:ui",
@@ -22,10 +21,13 @@
     "start": "AGENTS=1 npm run network",
     "start:2": "AGENTS=2 npm run network",
     "network": "hc s clean && npm run build:happ && concurrently -k \"UI_PORT=1420 npm run -w ui dev\" \"npm run launch\"",
-    "launch": "hc-spin --ui-port 1420 -n $AGENTS workdir/sharefeed.happ"
+    "launch": "hc-spin --ui-port 1420 -n $AGENTS workdir/sharefeed.happ",
+    "start:moss": "UI_PORT=1420 npm run launch:moss",
+    "launch:moss": "concurrently \"npm run -w ui dev\" \"sleep 1 && weave --agent-idx 1 --dev-config we_dev/config.ts\" \"sleep 10 && weave --agent-idx 2 --dev-config we_dev/config.ts\""
   },
   "devDependencies": {
     "@holochain/hc-spin": "^0.600.0",
+    "@theweave/cli": "^0.15.11",
     "concurrently": "^8.2.2"
   },
   "workspaces": [
