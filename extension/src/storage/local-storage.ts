@@ -99,14 +99,24 @@ export function generateShareId(): string {
 
 /**
  * Get a local identifier for the current user.
+ * Uses chrome.storage.local since service workers don't have localStorage.
  * In Phase 4+, this will be replaced by the Holochain agent pubkey.
  */
-export function getLocalUserId(): string {
+let cachedUserId: string | null = null;
+
+export async function getLocalUserId(): Promise<string> {
+  if (cachedUserId) return cachedUserId;
+
   const key = 'sharefeed_local_user_id';
-  const stored = localStorage.getItem(key);
-  if (stored) return stored;
+  const result = await chrome.storage.local.get(key);
+
+  if (result[key]) {
+    cachedUserId = result[key] as string;
+    return cachedUserId;
+  }
 
   const newId = generateShareId();
-  localStorage.setItem(key, newId);
+  await chrome.storage.local.set({ [key]: newId });
+  cachedUserId = newId;
   return newId;
 }

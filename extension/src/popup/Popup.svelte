@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { ShareMetadata, ShareItem, ExtensionMessage } from '@/types';
+  import type { ShareMetadata, ShareItem, ExtensionMessage, ConnectionStatus } from '@/types';
+  import { getHolochainSettings, saveHolochainSettings, type HolochainSettings } from '@/storage/holochain-storage';
 
   // State using Svelte 5 runes
   let loading = $state(true);
@@ -8,16 +9,45 @@
   let error = $state<string | null>(null);
   let metadata = $state<ShareMetadata | null>(null);
   let recentShares = $state<ShareItem[]>([]);
+  let connectionStatus = $state<ConnectionStatus | null>(null);
 
   // Form state
   let customNote = $state('');
   let showRecent = $state(false);
+  let showSettings = $state(false);
+  let settings = $state<HolochainSettings>({ adminPort: 0, appPort: 0, enabled: true });
 
   // Fetch metadata from current tab on mount
   $effect(() => {
     loadCurrentTabMetadata();
     loadRecentShares();
+    loadSettings();
   });
+
+  async function loadSettings() {
+    settings = await getHolochainSettings();
+    await checkConnectionStatus();
+  }
+
+  async function checkConnectionStatus() {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'GET_CONNECTION_STATUS' });
+      if (response?.type === 'CONNECTION_STATUS_RESPONSE') {
+        connectionStatus = response.payload;
+      }
+    } catch (err) {
+      console.error('Failed to get connection status:', err);
+    }
+  }
+
+  async function handleSaveSettings() {
+    await saveHolochainSettings(settings);
+    // Tell service worker to reset its connection with new settings
+    await chrome.runtime.sendMessage({ type: 'RESET_CONNECTION' });
+    // Force reconnection check
+    await checkConnectionStatus();
+    showSettings = false;
+  }
 
   async function loadCurrentTabMetadata() {
     loading = true;
@@ -131,7 +161,40 @@
 <main>
   <header>
     <h1>ShareFeed</h1>
+    {#if connectionStatus}
+      <button class="connection-status" class:connected={connectionStatus.holochainAvailable} onclick={() => showSettings = !showSettings}>
+        <span class="status-dot"></span>
+        <span class="status-text">
+          {connectionStatus.holochainAvailable ? 'Holochain' : 'Local'}
+        </span>
+      </button>
+    {/if}
   </header>
+
+  {#if showSettings}
+    <div class="settings-panel">
+      <h3>Holochain Connection</h3>
+      <p class="settings-hint">Look for "Conductor launched" in terminal with admin_port and app_ports</p>
+      <div class="settings-row">
+        <label for="admin-port">Admin Port</label>
+        <input id="admin-port" type="number" bind:value={settings.adminPort} placeholder="e.g. 41897" />
+      </div>
+      <div class="settings-row">
+        <label for="app-port">App Port</label>
+        <input id="app-port" type="number" bind:value={settings.appPort} placeholder="e.g. 41931" />
+      </div>
+      <div class="settings-row checkbox">
+        <label>
+          <input type="checkbox" bind:checked={settings.enabled} />
+          Enable Holochain
+        </label>
+      </div>
+      <div class="settings-actions">
+        <button class="btn-secondary" onclick={() => showSettings = false}>Cancel</button>
+        <button class="btn-primary" onclick={handleSaveSettings}>Save</button>
+      </div>
+    </div>
+  {/if}
 
   {#if loading}
     <div class="loading">
@@ -232,6 +295,115 @@
     font-size: 18px;
     font-weight: 600;
     color: var(--primary-color);
+  }
+
+  .connection-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #666;
+    padding: 4px 8px;
+    background: #f5f5f5;
+    border-radius: 12px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #999;
+  }
+
+  .connection-status.connected .status-dot {
+    background: #22c55e;
+  }
+
+  .connection-status.connected {
+    color: #16a34a;
+    background: #f0fdf4;
+  }
+
+  .connection-status:hover {
+    opacity: 0.8;
+    cursor: pointer;
+  }
+
+  .settings-panel {
+    background: #f9fafb;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .settings-panel h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+  }
+
+  .settings-hint {
+    font-size: 11px;
+    color: #666;
+    margin: 0 0 12px 0;
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .settings-row label {
+    font-size: 12px;
+    min-width: 70px;
+  }
+
+  .settings-row input[type="number"] {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 13px;
+  }
+
+  .settings-row.checkbox label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: auto;
+  }
+
+  .settings-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 12px;
+  }
+
+  .btn-secondary, .btn-primary {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .btn-secondary {
+    background: white;
+    border: 1px solid var(--border-color);
+    color: #666;
+  }
+
+  .btn-primary {
+    background: var(--primary-color);
+    border: none;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-hover);
   }
 
   .loading, .error-message, .success-message {

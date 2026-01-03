@@ -48,6 +48,13 @@ export interface ShareMetadata {
 /**
  * Message types for communication between extension components.
  */
+export type StorageMode = 'holochain' | 'local' | 'auto';
+
+export interface ConnectionStatus {
+  mode: StorageMode;
+  holochainAvailable: boolean;
+}
+
 export type ExtensionMessage =
   | { type: 'GET_METADATA' }
   | { type: 'METADATA_RESPONSE'; payload: ShareMetadata }
@@ -57,7 +64,13 @@ export type ExtensionMessage =
   | { type: 'SHARE_SUCCESS'; payload: ShareItem }
   | { type: 'SHARE_ERROR'; payload: string }
   | { type: 'GET_SHARES' }
-  | { type: 'SHARES_RESPONSE'; payload: ShareItem[] };
+  | { type: 'SHARES_RESPONSE'; payload: ShareItem[] }
+  | { type: 'GET_CONNECTION_STATUS' }
+  | { type: 'CONNECTION_STATUS_RESPONSE'; payload: ConnectionStatus }
+  | { type: 'SET_STORAGE_MODE'; payload: StorageMode }
+  | { type: 'STORAGE_MODE_SET'; payload: StorageMode }
+  | { type: 'RESET_CONNECTION' }
+  | { type: 'CONNECTION_RESET' };
 
 /**
  * Context menu share context - indicates what was right-clicked.

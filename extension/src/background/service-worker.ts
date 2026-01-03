@@ -1,7 +1,9 @@
-import type { ShareItem, ShareMetadata, ExtensionMessage } from '@/types';
-import { getLocalStorageAdapter, generateShareId, getLocalUserId } from '@/storage/local-storage';
+import type { ShareItem, ShareMetadata, ExtensionMessage, StorageMode } from '@/types';
+import { generateShareId, getLocalUserId } from '@/storage/local-storage';
+import { getStorageManager, setStorageMode } from '@/storage/storage-manager';
+import { resetHolochainStorageAdapter } from '@/storage/holochain-storage';
 
-const storage = getLocalStorageAdapter();
+const storage = getStorageManager();
 
 // Create context menus on extension install/update
 chrome.runtime.onInstalled.addListener(() => {
@@ -91,7 +93,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       ...share,
       id: generateShareId(),
       sharedAt: Date.now(),
-      sharedBy: getLocalUserId(),
+      sharedBy: await getLocalUserId(),
     };
 
     await storage.saveShare(fullShare);
@@ -128,10 +130,23 @@ async function handleMessage(message: ExtensionMessage): Promise<ExtensionMessag
         ...message.payload,
         id: generateShareId(),
         sharedAt: Date.now(),
-        sharedBy: getLocalUserId(),
+        sharedBy: await getLocalUserId(),
       };
       await storage.saveShare(newShare);
       return { type: 'SHARE_SUCCESS', payload: newShare };
+
+    case 'GET_CONNECTION_STATUS':
+      const status = await storage.checkConnection();
+      return { type: 'CONNECTION_STATUS_RESPONSE', payload: status };
+
+    case 'SET_STORAGE_MODE':
+      await setStorageMode(message.payload as StorageMode);
+      return { type: 'STORAGE_MODE_SET', payload: message.payload as StorageMode };
+
+    case 'RESET_CONNECTION':
+      resetHolochainStorageAdapter(); // Reset the Holochain adapter singleton
+      storage.resetConnection();
+      return { type: 'CONNECTION_RESET' };
 
     default:
       throw new Error(`Unknown message type: ${(message as ExtensionMessage).type}`);
