@@ -13,6 +13,7 @@
   "dependencies": {
     "@holochain/client": "^0.20.0",
     "@msgpack/msgpack": "^2.8.0",
+    "@theweave/api": "^0.6.3",
     "libsodium-wrappers": "0.7.15"
   },
   "devDependencies": {

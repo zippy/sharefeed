@@ -1,6 +1,9 @@
 /**
  * Holochain connection management.
- * Handles connecting to the conductor in different environments.
+ * Handles connecting to the conductor in different environments:
+ * - Moss/Weave context (uses WeaveClient)
+ * - Kangaroo launcher (uses launcher API)
+ * - Development (uses direct WebSocket)
  */
 
 import {
@@ -9,12 +12,15 @@ import {
   type AppClient,
   type AppWebsocketConnectionOptions,
 } from '@holochain/client';
+import { WeaveClient, isWeaveContext, initializeHotReload } from '@theweave/api';
 import { ShareFeedClient } from './client';
+import { appletServices } from '../../we';
 
 export const APP_ID = 'sharefeed';
 
 let client: AppClient | null = null;
 let shareFeedClient: ShareFeedClient | null = null;
+let weaveClient: WeaveClient | null = null;
 
 export interface ConnectionOptions {
   /** Admin port for dev mode (issues auth token) */
@@ -27,58 +33,79 @@ export interface ConnectionOptions {
 
 /**
  * Connect to the Holochain conductor.
- * In production (Kangaroo), uses launcher API.
- * In development, connects directly with optional admin auth.
+ * Priority order:
+ * 1. Moss/Weave context (uses WeaveClient)
+ * 2. Kangaroo launcher (uses launcher API)
+ * 3. Development (uses direct WebSocket)
  */
 export async function connect(options: ConnectionOptions = {}): Promise<ShareFeedClient> {
   if (shareFeedClient) {
     return shareFeedClient;
   }
 
-  // Check for Kangaroo/launcher environment
-  const launcher = (window as unknown as { __HC_LAUNCHER__?: HcLauncher }).__HC_LAUNCHER__;
+  // Initialize hot reload for Moss dev mode
+  if ((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV) {
+    try {
+      await initializeHotReload();
+    } catch {
+      // Expected to fail outside Moss context
+    }
+  }
 
-  if (launcher) {
-    // Production: use launcher API
-    const appPort = await launcher.getAppPort();
-    const token = await launcher.getAppToken();
-    const wsOptions: AppWebsocketConnectionOptions = {
-      url: new URL(`ws://localhost:${appPort}`),
-      token,
-    };
-    client = await AppWebsocket.connect(wsOptions);
+  // Check for Moss/Weave context first
+  if (isWeaveContext()) {
+    weaveClient = await WeaveClient.connect(appletServices);
+    if (weaveClient.renderInfo.type === 'applet-view') {
+      client = weaveClient.renderInfo.appletClient;
+    } else {
+      throw new Error('Unsupported Weave render type');
+    }
   } else {
-    // Development: connect directly
-    const adminPort = options.adminPort || getEnvPort('VITE_ADMIN_PORT');
-    const appPort = options.appPort || getEnvPort('VITE_APP_PORT') || 30000;
-    const url = options.url || `ws://localhost:${appPort}`;
+    // Check for Kangaroo/launcher environment
+    const launcher = (window as unknown as { __HC_LAUNCHER__?: HcLauncher }).__HC_LAUNCHER__;
 
-    let token: Uint8Array | undefined;
+    if (launcher) {
+      // Production: use launcher API
+      const appPort = await launcher.getAppPort();
+      const token = await launcher.getAppToken();
+      const wsOptions: AppWebsocketConnectionOptions = {
+        url: new URL(`ws://localhost:${appPort}`),
+        token,
+      };
+      client = await AppWebsocket.connect(wsOptions);
+    } else {
+      // Development: connect directly
+      const adminPort = options.adminPort || getEnvPort('VITE_ADMIN_PORT');
+      const appPort = options.appPort || getEnvPort('VITE_APP_PORT') || 30000;
+      const url = options.url || `ws://localhost:${appPort}`;
 
-    // If admin port is available, get auth token
-    if (adminPort) {
-      const adminWs = await AdminWebsocket.connect({ url: new URL(`ws://localhost:${adminPort}`) });
-      const tokenResp = await adminWs.issueAppAuthenticationToken({
-        installed_app_id: APP_ID,
-      });
-      token = tokenResp.token;
+      let token: Uint8Array | undefined;
 
-      // Authorize signing credentials
-      const cellIds = await adminWs.listCellIds();
-      if (cellIds.length > 0) {
-        await adminWs.authorizeSigningCredentials(cellIds[0]);
+      // If admin port is available, get auth token
+      if (adminPort) {
+        const adminWs = await AdminWebsocket.connect({ url: new URL(`ws://localhost:${adminPort}`) });
+        const tokenResp = await adminWs.issueAppAuthenticationToken({
+          installed_app_id: APP_ID,
+        });
+        token = tokenResp.token;
+
+        // Authorize signing credentials
+        const cellIds = await adminWs.listCellIds();
+        if (cellIds.length > 0) {
+          await adminWs.authorizeSigningCredentials(cellIds[0]);
+        }
       }
-    }
 
-    const wsOptions: AppWebsocketConnectionOptions = {
-      url: new URL(url),
-      defaultTimeout: 30000,
-    };
-    if (token) {
-      wsOptions.token = token;
-    }
+      const wsOptions: AppWebsocketConnectionOptions = {
+        url: new URL(url),
+        defaultTimeout: 30000,
+      };
+      if (token) {
+        wsOptions.token = token;
+      }
 
-    client = await AppWebsocket.connect(wsOptions);
+      client = await AppWebsocket.connect(wsOptions);
+    }
   }
 
   shareFeedClient = new ShareFeedClient(client);
@@ -102,15 +129,28 @@ export function getAppClient(): AppClient | null {
 }
 
 /**
+ * Get the WeaveClient if in Moss context.
+ * Returns null if not in Moss or not connected.
+ */
+export function getWeaveClient(): WeaveClient | null {
+  return weaveClient;
+}
+
+/**
+ * Check if running in Moss/Weave context.
+ */
+export function inWeaveContext(): boolean {
+  return isWeaveContext();
+}
+
+/**
  * Disconnect from the conductor.
  */
 export async function disconnect(): Promise<void> {
-  if (client) {
-    // AppWebsocket doesn't have a disconnect method in current API
-    // Just clear the references
-    client = null;
-    shareFeedClient = null;
-  }
+  // Clear all client references
+  client = null;
+  shareFeedClient = null;
+  weaveClient = null;
 }
 
 /**

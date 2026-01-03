@@ -3,7 +3,16 @@
  */
 
 export { ShareFeedClient, ROLE_NAME, ZOME_NAME } from './client';
-export { connect, disconnect, getClient, getAppClient, isConnected, APP_ID } from './connection';
+export {
+  connect,
+  disconnect,
+  getClient,
+  getAppClient,
+  getWeaveClient,
+  isConnected,
+  inWeaveContext,
+  APP_ID,
+} from './connection';
 export type {
   ShareItem,
   ShareItemInfo,
