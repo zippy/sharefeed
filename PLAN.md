@@ -386,8 +386,23 @@ export async function createShare(share: ShareItem): Promise<void> {
 6. Handle Chrome MV3 service worker constraints
 
 ---
+## Phase 6: Mossify the hApp ✓ COMPLETED
 
-## Phase 6: Kangaroo Desktop Deployment
+### Summary
+- Added we_dev/config.ts with Weave CLI dev configuration for two agents (Alice/Bob)
+- Added tsconfig.json to fix ts-node module resolution for weave CLI
+- Added @theweave/cli dependency
+- `npm run start:moss` now launches Moss with hot-reload UI
+
+### Implementation
+- Weave dev config at we_dev/config.ts
+- Group: "ShareFeed Test Group" with network seed
+- Two agents for testing cross-agent sync
+- Applet source: localhost:1420 for hot reload
+
+---
+
+## Phase 7: Kangaroo Desktop Deployment
 
 ### Configuration
 ```typescript
@@ -424,6 +439,44 @@ sharefeed/
 
 ### Key Reference File
 - `../kangaroo-electron/kangaroo.config.ts`
+
+---
+
+## Phase 8: Extension + Moss Integration (DEFERRED)
+
+### Overview
+Connect the browser extension to the Moss-hosted conductor so shares from the extension appear in the Moss UI.
+
+### 8.1 Port Discovery
+- Moss runs conductor on dynamic ports
+- Extension needs to discover the app websocket port
+- Options: Native messaging, localhost HTTP endpoint, manual config
+
+### 8.2 Authentication
+- Moss manages app tokens for security
+- Extension needs valid token to connect
+- May require Moss API for token retrieval
+
+### 8.3 Extension Configuration
+- Settings page for Moss connection URL
+- Auto-detect running Moss instance
+- Fallback to manual port configuration
+
+### 8.4 Service Worker Constraints
+- Chrome MV3 service workers have connection limits
+- May need connection pooling or lazy connect
+- Handle Moss restart/port changes gracefully
+
+### 8.5 Testing Workflow
+1. Start Moss with `npm run start:moss`
+2. Configure extension to connect
+3. Test: Share from extension → View in Moss UI
+4. Test: Cross-agent visibility
+
+### 8.6 User Experience
+- Extension popup shows connection status
+- Visual indicator when connected to Moss
+- Error handling when Moss not running
 
 ---
 
