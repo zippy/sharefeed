@@ -104,7 +104,29 @@
       "Bash(xargs:*)",
       "Bash(timeout 20 npm run start:moss:*)",
       "Bash(timeout 25 npm run start:moss)",
-      "Bash(timeout 15 npm run launch:moss:*)"
+      "Bash(timeout 15 npm run launch:moss:*)",
+      "Bash(yarn install)",
+      "Bash(nvm list:*)",
+      "Bash(yarn install:*)",
+      "Bash(npm run pack:webhapp:*)",
+      "Bash(yarn setup)",
+      "Bash(timeout 30 yarn dev:*)",
+      "Bash(git restore:*)",
+      "Bash(timeout 40 yarn dev:*)",
+      "Bash(timeout 25 yarn dev:*)",
+      "Bash(timeout 20 yarn dev:*)",
+      "Bash(timeout 35 yarn dev:*)",
+      "Bash(npm run build:ui:*)",
+      "Bash(timeout 45 yarn dev:*)",
+      "Bash(timeout 50 yarn dev:*)",
+      "Bash(timeout 55 yarn dev:*)",
+      "WebFetch(domain:opensource.org)",
+      "WebFetch(domain:spdx.org)",
+      "Bash(npm run package:extension:*)",
+      "Bash(timeout 180 yarn build:linux:*)",
+      "Bash(identify:*)",
+      "Bash(convert:*)",
+      "Bash(npm run deploy:desktop:*)"
     ]
   }
 }

@@ -7,7 +7,7 @@ ShareFeed allows a group of people to share websites, videos, and other web cont
 ShareFeed consists of two components across two repositories:
 
 1. **This repo (`sharefeed`)** - Holochain app, UI, and browser extension
-2. **[`sharefeed-desktop`](https://github.com/zippy/sharefeed-desktop)** - Desktop app wrapper (based on Kangaroo)
+2. **[`sharefeed-desktop`](https://github.com/lightningrodlabs/sharefeed-desktop)** - Desktop app wrapper (based on Kangaroo)
 
 All data is stored on the Holochain distributed network, giving you full ownership and control of your data.
 
@@ -15,7 +15,7 @@ All data is stored on the Holochain distributed network, giving you full ownersh
 
 ### Desktop App
 
-1. Download the latest release from [sharefeed-desktop releases](https://github.com/zippy/sharefeed-desktop/releases)
+1. Download the latest release from [sharefeed-desktop releases](https://github.com/lightningrodlabs/sharefeed-desktop/releases)
 2. Run the installer for your platform:
    - **Windows**: Run `ShareFeed-Setup.exe`
    - **macOS**: Open `ShareFeed.dmg` and drag to Applications
@@ -25,7 +25,7 @@ All data is stored on the Holochain distributed network, giving you full ownersh
 
 #### From Release (Recommended)
 
-1. Download `sharefeed-extension.zip` from the [Releases page](https://github.com/zippy/sharefeed/releases)
+1. Download `sharefeed-extension.zip` from the [Releases page](https://github.com/lightningrodlabs/sharefeed/releases)
 2. Unzip to a folder on your computer
 3. Open Chrome and go to `chrome://extensions`
 4. Enable "Developer mode" (toggle in top right)
@@ -60,8 +60,8 @@ Then load the `extension/dist` folder as an unpacked extension.
 
 ```bash
 # Clone both repositories
-git clone https://github.com/zippy/sharefeed.git
-git clone https://github.com/zippy/sharefeed-desktop.git
+git clone https://github.com/lightningrodlabs/sharefeed.git
+git clone https://github.com/lightningrodlabs/sharefeed-desktop.git
 
 cd sharefeed
 npm install
