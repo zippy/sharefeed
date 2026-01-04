@@ -28,7 +28,7 @@ jobs:
       - name: Install and build
         run: |
           nix-store --gc
-          nix develop --command bash -c "holochain --version && npm install && npm run pack:webhapp"
+          nix develop --command bash -c "holochain --version && npm install && npm run build:happ && npm run pack:webhapp"
           shasum -a 256 ./workdir/sharefeed.happ
           shasum -a 256 ./workdir/sharefeed.webhapp
 
