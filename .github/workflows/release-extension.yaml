@@ -1,0 +1,50 @@
+name: 'release-extension'
+on:
+  push:
+    tags:
+      - 'ext-v[0-9]+.[0-9]+.[0-9]+'
+      - 'ext-v[0-9]+.[0-9]+.[0-9]+-[a-z]+'
+      - 'ext-v[0-9]+.[0-9]+.[0-9]+-[a-z]+.[0-9]+'
+
+jobs:
+  publish-extension:
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and build extension
+        run: |
+          npm install
+          npm run package:extension
+          shasum -a 256 ./sharefeed-extension.zip
+
+      - name: Retrieve version
+        run: |
+          echo "APP_VERSION=$(cat package.json | grep -oP '(?<="version": ")[^"]*')" >> $GITHUB_OUTPUT
+        id: version
+
+      - id: create-release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: sharefeed-extension.zip
+          body: |
+            ## Browser Extension v${{ steps.version.outputs.APP_VERSION }}
+
+            ### Installation
+            1. Download `sharefeed-extension.zip`
+            2. Unzip to a folder
+            3. Open Chrome → `chrome://extensions`
+            4. Enable "Developer mode"
+            5. Click "Load unpacked" and select the unzipped folder
+          name: ShareFeed Extension v${{ steps.version.outputs.APP_VERSION }}
+          tag: ext-v${{ steps.version.outputs.APP_VERSION }}
+          prerelease: true
+          draft: true

@@ -146,7 +146,7 @@ npm run test:integration
 npm run package:extension
 ```
 
-#### Desktop App
+#### Desktop App (Local)
 
 ```bash
 # In sharefeed repo: build webhapp
@@ -160,7 +160,60 @@ cd ../sharefeed-desktop
 yarn build:linux    # or build:win, build:mac-arm64, build:mac-x64
 ```
 
-The desktop repo has GitHub Actions that automatically build releases for all platforms when you push to the `release` branch.
+### Release Process (CI)
+
+Releases are automated via GitHub Actions across both repositories.
+
+#### 1. Release the hApp/WebHapp (this repo)
+
+```bash
+# Update version in package.json
+# Commit changes
+
+# Tag and push to trigger CI build
+git tag happ-v0.1.0
+git push origin happ-v0.1.0
+```
+
+This triggers `.github/workflows/release-webhapp.yaml` which:
+- Builds the webhapp using nix
+- Creates a draft GitHub release with `sharefeed.webhapp` and `sharefeed.happ`
+- Outputs SHA256 checksums
+
+#### 2. Release the Extension (this repo)
+
+```bash
+git tag ext-v0.1.0
+git push origin ext-v0.1.0
+```
+
+This triggers `.github/workflows/release-extension.yaml` which:
+- Builds and zips the extension
+- Creates a draft GitHub release with `sharefeed-extension.zip`
+
+#### 3. Release the Desktop App (sharefeed-desktop repo)
+
+After the webhapp release is published:
+
+1. Update `kangaroo.config.ts` in sharefeed-desktop:
+   ```typescript
+   webhapp: {
+     url: 'https://github.com/lightningrodlabs/sharefeed/releases/download/happ-v0.1.0/sharefeed.webhapp',
+     sha256: '<sha256-from-release>',
+   },
+   ```
+
+2. Push to the `release` branch:
+   ```bash
+   git checkout release
+   git merge main
+   git push origin release
+   ```
+
+This triggers the desktop release workflow which builds installers for:
+- Windows (.exe)
+- macOS (x86 and arm64 .dmg)
+- Linux (.AppImage and .deb)
 
 ## Architecture
 
